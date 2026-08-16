@@ -9,7 +9,6 @@ import 'middleware/cors_middleware.dart';
 import 'middleware/auth_middleware.dart';
 
 void main() async {
-  // 1. Conectar a PostgreSQL
   try {
     await DatabaseConfig.connection;
     print('✅ Conectado a PostgreSQL');
@@ -18,7 +17,6 @@ void main() async {
     return;
   }
 
-  // 2. Configurar rutas
   final app = Router();
   
   final authRoutes = AuthRoutes();
@@ -27,28 +25,21 @@ void main() async {
   final appointmentRoutes = AppointmentRoutes();
   app.mount('/api', appointmentRoutes.router);
 
-  // 3. Aplicar middleware
   final handler = const Pipeline()
       .addMiddleware(corsMiddleware())
       .addMiddleware(logRequests())
       .addMiddleware(
         (Handler handler) {
           return (Request request) async {
-            final path = request.url.path;
-            
-            // 🔥 Proteger rutas que contienen "api/"
-            if (path.contains('api/') || path.startsWith('api/')) {
-              print('🔒 [MAIN] Protegiendo ruta: $path');
+            if (request.url.path.startsWith('api/') || request.url.path.contains('api/')) {
               return await AuthMiddleware.requireAuth()(handler)(request);
             }
-            print('🔓 [MAIN] Ruta pública: $path');
             return await handler(request);
           };
         },
       )
       .addHandler(app);
 
-  // 4. Iniciar servidor
   try {
     final server = await serve(handler, 'localhost', 8080);
     print('🚀 Servidor: http://${server.address.host}:${server.port}');
